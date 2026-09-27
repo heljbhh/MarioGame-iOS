@@ -32,7 +32,12 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
+            // Same sky color as the game, so there's never a black flash
+            // or letterbox bars around the game view.
+            Color(red: 0.45, green: 0.75, blue: 1.0).ignoresSafeArea()
+
             GameSpriteView(gameState: gameState)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
 
             if gameState.screen == .menu {
@@ -65,16 +70,24 @@ struct GameSpriteView: UIViewRepresentable {
         let view = SKView()
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         return view
     }
 
     func updateUIView(_ uiView: SKView, context: Context) {
-        guard uiView.scene == nil else { return }
-        let scene = GameScene(size: CGSize(width: 1280, height: 720))
-        scene.scaleMode = .aspectFill
-        scene.gameState = gameState
-        gameState.scene = scene
-        uiView.presentScene(scene)
+        let boundsSize = uiView.bounds.size
+        guard boundsSize.width > 1, boundsSize.height > 1 else { return }
+        if let scene = uiView.scene as? GameScene {
+            scene.fitToView(boundsSize)
+        } else if uiView.scene == nil {
+            // Size the scene from the real view bounds so it fills the
+            // screen exactly on every device (no bars, no cropping).
+            let scene = GameScene(size: GameScene.sizeForView(boundsSize))
+            scene.scaleMode = .aspectFill
+            scene.gameState = gameState
+            gameState.scene = scene
+            uiView.presentScene(scene)
+        }
     }
 }
 

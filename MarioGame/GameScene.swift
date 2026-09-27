@@ -98,6 +98,43 @@ final class GameScene: SKScene {
 
     private var lastTime: TimeInterval = 0
 
+    // MARK: - Adaptive layout (scene size follows the real view)
+
+    /// Fixed logical height; the width follows the view's aspect ratio so
+    /// the scene always fills the screen exactly (no bars, no cropping).
+    static func sizeForView(_ viewSize: CGSize) -> CGSize {
+        let h: CGFloat = 720
+        let aspect = viewSize.width / max(viewSize.height, 1)
+        return CGSize(width: max(h * aspect, h * 1.2), height: h)
+    }
+
+    private var halfW: CGFloat { size.width / 2 }
+    private var halfH: CGFloat { size.height / 2 }
+
+    /// Re-fit the scene when the hosting view changes size.
+    func fitToView(_ viewSize: CGSize) {
+        let newSize = GameScene.sizeForView(viewSize)
+        guard abs(newSize.width - size.width) > 0.5 else { return }
+        size = newSize
+        layoutForCurrentSize()
+    }
+
+    /// Camera, HUD and touch buttons are positioned relative to the
+    /// current scene size, so nothing is ever cut off at the edges.
+    private func layoutForCurrentSize() {
+        if levelWidth > size.width {
+            cam?.position = CGPoint(x: min(max(px, halfW), levelWidth - halfW), y: halfH)
+        } else {
+            cam?.position = CGPoint(x: levelWidth / 2, y: halfH)
+        }
+        scoreLabel?.position = CGPoint(x: -halfW + 100, y: halfH - 55)
+        coinLabel?.position = CGPoint(x: -halfW + 340, y: halfH - 55)
+        livesLabel?.position = CGPoint(x: halfW - 100, y: halfH - 55)
+        leftNode?.position = CGPoint(x: -halfW + 95, y: -(halfH - 95))
+        rightNode?.position = CGPoint(x: -halfW + 235, y: -(halfH - 95))
+        jumpNode?.position = CGPoint(x: halfW - 95, y: -(halfH - 95))
+    }
+
     // MARK: - Lifecycle
 
     override func didMove(to view: SKView) {
@@ -118,7 +155,7 @@ final class GameScene: SKScene {
         invTimer = 0
         lastTime = 0
         buildWorld()
-        cam?.position = CGPoint(x: 640, y: 360)
+        cam?.position = CGPoint(x: halfW, y: halfH)
         updateHUD()
     }
 
@@ -362,18 +399,19 @@ final class GameScene: SKScene {
 
     private func setupCamera() {
         let c = SKCameraNode()
-        c.position = CGPoint(x: 640, y: 360)
         cam = c
         addChild(c)
         camera = c
 
-        scoreLabel = makeLabel(text: "SCORE 0", pos: CGPoint(x: -540, y: 305))
-        coinLabel = makeLabel(text: "COINS 0", pos: CGPoint(x: -300, y: 305))
-        livesLabel = makeLabel(text: "LIVES 3", pos: CGPoint(x: 540, y: 305))
+        scoreLabel = makeLabel(text: "SCORE 0", pos: .zero)
+        coinLabel = makeLabel(text: "COINS 0", pos: .zero)
+        livesLabel = makeLabel(text: "LIVES 3", pos: .zero)
 
-        leftNode = makeButton(title: "◀", pos: CGPoint(x: -545, y: -265))
-        rightNode = makeButton(title: "▶", pos: CGPoint(x: -405, y: -265))
-        jumpNode = makeButton(title: "▲", pos: CGPoint(x: 545, y: -265))
+        leftNode = makeButton(title: "◀", pos: .zero)
+        rightNode = makeButton(title: "▶", pos: .zero)
+        jumpNode = makeButton(title: "▲", pos: .zero)
+
+        layoutForCurrentSize()
     }
 
     private func makeLabel(text: String, pos: CGPoint) -> SKLabelNode {
@@ -458,8 +496,8 @@ final class GameScene: SKScene {
         }
 
         // Camera follows the player horizontally
-        let cx = min(max(px, 640), levelWidth - 640)
-        cam?.position = CGPoint(x: cx, y: 360)
+        let cx = min(max(px, halfW), levelWidth - halfW)
+        cam?.position = CGPoint(x: cx, y: halfH)
         player?.position = CGPoint(x: px, y: py)
     }
 
