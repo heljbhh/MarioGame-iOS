@@ -63,28 +63,47 @@ struct ContentView: View {
 
 // MARK: - SpriteKit view wrapper
 
+/// SKView that re-fits the game scene every time its bounds change
+/// (first layout, rotation, split view, ...).
+final class GameSKView: SKView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let s = bounds.size
+        guard s.width > 1, s.height > 1 else { return }
+        (scene as? GameScene)?.fitToView(s)
+    }
+}
+
 struct GameSpriteView: UIViewRepresentable {
     let gameState: GameState
 
-    func makeUIView(context: Context) -> SKView {
-        let view = SKView()
+    /// Builds a ready-to-play scene with a guaranteed-valid size.
+    /// UIScreen.main.bounds is always real here, unlike the view's own
+    /// bounds which are still .zero at this point.
+    private func makeScene() -> GameScene {
+        let screenSize = UIScreen.main.bounds.size
+        let scene = GameScene(size: GameScene.sizeForView(screenSize))
+        scene.scaleMode = .aspectFill
+        scene.gameState = gameState
+        return scene
+    }
+
+    func makeUIView(context: Context) -> GameSKView {
+        let view = GameSKView()
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true
-        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // Present immediately: updateUIView is not guaranteed to run again
+        // after layout, so the scene must exist from the very start.
+        let scene = makeScene()
+        gameState.scene = scene
+        view.presentScene(scene)
         return view
     }
 
-    func updateUIView(_ uiView: SKView, context: Context) {
-        let boundsSize = uiView.bounds.size
-        guard boundsSize.width > 1, boundsSize.height > 1 else { return }
-        if let scene = uiView.scene as? GameScene {
-            scene.fitToView(boundsSize)
-        } else if uiView.scene == nil {
-            // Size the scene from the real view bounds so it fills the
-            // screen exactly on every device (no bars, no cropping).
-            let scene = GameScene(size: GameScene.sizeForView(boundsSize))
-            scene.scaleMode = .aspectFill
-            scene.gameState = gameState
+    func updateUIView(_ uiView: GameSKView, context: Context) {
+        // Safety net: if the scene was somehow lost, restore it.
+        if uiView.scene == nil {
+            let scene = makeScene()
             gameState.scene = scene
             uiView.presentScene(scene)
         }

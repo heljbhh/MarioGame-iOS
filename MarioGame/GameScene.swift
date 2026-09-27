@@ -142,6 +142,9 @@ final class GameScene: SKScene {
         buildWorld()
         setupCamera()
         updateHUD()
+        // Position camera, HUD and buttons for the initial scene size right
+        // away, so the first frame is correct even before any resize.
+        layoutForCurrentSize()
     }
 
     func startNewGame() {
